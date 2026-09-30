@@ -10,6 +10,9 @@ struct ChordyApp: App {
         #if DEBUG
         PillSnapshots.renderIfRequested()
         #endif
+        #if DEBUG && canImport(ChordyMLX)
+        MLXEvalHook.runIfRequested()
+        #endif
     }
 
     var body: some Scene {

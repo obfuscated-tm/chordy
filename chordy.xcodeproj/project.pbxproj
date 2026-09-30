@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		000000000000000150000000 /* ChordyCore in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000170000000 /* ChordyCore */; };
+		000000000000000151000000 /* ChordyMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 000000000000000171000000 /* ChordyMLX */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				000000000000000150000000 /* ChordyCore in Frameworks */,
+				000000000000000151000000 /* ChordyMLX in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -67,6 +69,7 @@
 			name = chordy;
 			packageProductDependencies = (
 				000000000000000170000000 /* ChordyCore */,
+				000000000000000171000000 /* ChordyMLX */,
 			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* chordy.app */;
@@ -98,6 +101,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				000000000000000160000000 /* XCLocalSwiftPackageReference "Packages/ChordyCore" */,
+				000000000000000161000000 /* XCLocalSwiftPackageReference "Packages/ChordyMLX" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
@@ -348,12 +352,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/ChordyCore;
 		};
+		000000000000000161000000 /* XCLocalSwiftPackageReference "Packages/ChordyMLX" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ChordyMLX;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		000000000000000170000000 /* ChordyCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ChordyCore;
+		};
+		000000000000000171000000 /* ChordyMLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ChordyMLX;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

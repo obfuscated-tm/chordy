@@ -8,7 +8,7 @@ DERIVED="${TMPDIR:-/tmp}/chordy-derived"
 CONFIG="${1:-Debug}"
 
 xcodebuild -project chordy.xcodeproj -scheme chordy -configuration "$CONFIG" -destination "platform=macOS,arch=arm64" \
-  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -quiet build
+  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -skipMacroValidation -quiet build
 
 pkill -x Chordy 2>/dev/null || true
 mkdir -p ~/Applications

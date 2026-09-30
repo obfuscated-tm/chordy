@@ -49,13 +49,23 @@ The builds go to `$TMPDIR` on purpose, because files under `~/Documents` pick up
 
 ### The MLX cleanup models
 
-`Packages/ChordyMLX` runs Qwen3 locally with [MLX Swift](https://github.com/ml-explore/mlx-swift-lm). It is kept out of the default build because it needs Xcode's Metal toolchain:
+`Packages/ChordyMLX` runs Qwen3 locally with [MLX Swift](https://github.com/ml-explore/mlx-swift-lm). Building it needs Xcode's Metal toolchain, which you install once:
 
 ```bash
 xcodebuild -downloadComponent MetalToolchain
 ```
 
-Then in Xcode, add `Packages/ChordyMLX` as a local package and link the **ChordyMLX** product to the app target. The app detects it with `#if canImport(ChordyMLX)` and adds the Qwen options.
+The scripts pass `-skipMacroValidation` because mlx-swift-lm uses a Swift macro. In the Xcode app, click **Trust & Enable** when it asks.
+
+Eval results on the 40 cases:
+
+| Cleanup model | Exact | Similarity |
+|---|---|---|
+| Qwen3 4B (Recommended) | 27/40 | 0.97 |
+| Apple Intelligence | 25/40 | 0.95 |
+| Qwen3 1.7B (Lite) | 23/40 | 0.93 |
+
+The Debug app can rerun this with `Chordy.app/Contents/MacOS/Chordy --mlx-eval Packages/ChordyCore/Evals/cleanup.json [recommended|lite]`.
 
 ### Core package and CLI
 

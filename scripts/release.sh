@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 DERIVED="${TMPDIR:-/tmp}/chordy-release"
 rm -rf "$DERIVED"
 xcodebuild -project chordy.xcodeproj -scheme chordy -configuration Release -destination "platform=macOS,arch=arm64" \
-  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -quiet build
+  -derivedDataPath "$DERIVED" -allowProvisioningUpdates -skipMacroValidation -quiet build
 
 APP="$DERIVED/Build/Products/Release/Chordy.app"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")
