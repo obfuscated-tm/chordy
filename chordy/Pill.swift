@@ -38,6 +38,11 @@ final class PillController {
         withAnimation(.spring(duration: 0.35, bounce: 0.3)) { presence.visible = true }
     }
 
+    /// The pill ignores the mouse except while it offers "↩ Raw".
+    func setInteractive(_ interactive: Bool) {
+        panel?.ignoresMouseEvents = !interactive
+    }
+
     func hide(completion: @escaping () -> Void = {}) {
         guard presence.visible else { return completion() }
         hideGeneration += 1
@@ -63,11 +68,16 @@ final class PillController {
         panel.level = .statusBar
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        let host = NSHostingView(rootView: PillView(model: model, presence: presence))
+        let host = ClickThroughHostingView(rootView: PillView(model: model, presence: presence))
         host.sizingOptions = []
         panel.contentView = host
         return panel
     }
+}
+
+/// Lets the first click on the pill press its button without activating Chordy.
+private final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 struct PillView: View {
@@ -99,7 +109,7 @@ struct PillView: View {
 private struct PillContent: View {
     let model: AppModel
 
-    private var tint: Color { model.activeAction == .dictateRaw ? .chordyMuted : .chordy }
+    private var tint: Color { model.activeMode.level == .raw ? .chordyMuted : .chordy }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -112,10 +122,10 @@ private struct PillContent: View {
             case .processing:
                 VocalCords(level: 0, style: .thinking, tint: tint)
                     .frame(width: 96, height: 24)
-                Text(model.activeAction == .dictateRaw || !model.cleanupLevel.usesLLM ? "Transcribing" : "Cleaning up")
+                Text(model.activeMode.level.usesLLM ? "Cleaning up" : "Transcribing")
                     .modifier(PillLabel())
             case .done(let outcome):
-                OutcomeView(outcome: outcome)
+                OutcomeView(outcome: outcome, undo: model.undoToRaw)
             }
         }
         .fixedSize()
@@ -148,13 +158,18 @@ private struct PillContent: View {
                     .modifier(PillLabel())
             }
         } else {
-            Text(model.modeName).modifier(PillLabel())
+            HStack(spacing: 4) {
+                Image(systemName: model.activeMode.symbol).font(.system(size: 10, weight: .semibold))
+                Text(model.modeName)
+            }
+            .modifier(PillLabel())
         }
     }
 }
 
 private struct OutcomeView: View {
     let outcome: AppModel.Outcome
+    let undo: () -> Void
 
     var body: some View {
         let (symbol, color, text): (String, Color, String) = switch outcome {
@@ -169,6 +184,18 @@ private struct OutcomeView: View {
                 .foregroundStyle(color)
                 .symbolEffect(.bounce, value: text)
             Text(text).modifier(PillLabel(emphasized: true))
+            if outcome == .pasted(undoable: true) {
+                Button(action: undo) {
+                    Label("Raw", systemImage: "arrow.uturn.backward")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(.white.opacity(0.14)))
+                }
+                .buttonStyle(.plain)
+                .help("Replace with exactly what you said")
+            }
         }
     }
 }

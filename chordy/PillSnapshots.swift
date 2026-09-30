@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import ChordyCore
 import SwiftUI
 
 /// `Chordy --render-pill <dir>` writes a PNG of every pill state, for design review without dictating.
@@ -15,10 +16,11 @@ enum PillSnapshots {
         let states: [(String, (AppModel) -> Void)] = [
             ("1-listening", { $0.phase = .recording; $0.level = 0.7 }),
             ("2-listening-quiet", { $0.phase = .recording; $0.level = 0.1 }),
-            ("3-raw", { $0.phase = .recording; $0.level = 0.5; $0.activeAction = .dictateRaw }),
+            ("3-raw", { $0.phase = .recording; $0.level = 0.5; $0.activeMode = .builtIn(.raw) }),
             ("4-locked", { $0.phase = .locked; $0.level = 0.6; $0.recordingStartedAt = Date().addingTimeInterval(-37) }),
             ("5-processing", { $0.phase = .processing }),
-            ("6-pasted", { $0.phase = .done(.pasted) }),
+            ("6-pasted", { $0.phase = .done(.pasted(undoable: true)) }),
+            ("6b-prompt", { $0.phase = .recording; $0.level = 0.6; $0.activeMode = .builtIn(.prompt) }),
             ("7-nothing", { $0.phase = .done(.nothingHeard) }),
             ("8-failed", { $0.phase = .done(.failed("Speech engine not ready")) }),
         ]

@@ -72,7 +72,7 @@ A mode = name, keybind, cleanup level, toggles (dev rules, trailing space), opti
 | Essay | 2 Clean | Pages, Word, Google Docs (browser) |
 | Raw | 0 Raw | — |
 
-An "Advanced: custom instructions" box exists per mode, collapsed (v1.1).
+An "Advanced: custom instructions" box exists per mode, collapsed (shipped in v1).
 
 ### Cleanup slider
 
@@ -105,24 +105,24 @@ The diff guard's tolerance scales with the level.
 
 ## Roadmap
 
-### Milestone 1 — core loop ✅ (in progress)
+### Milestone 1 — core loop ✅
 - [x] `ChordyCore` package: recorder, transcribers (WhisperKit + Apple), rules, cleaner (Foundation Models), diff guard, hotkey state machine
 - [x] `chordy` CLI: `transcribe <audio>`, `process <text>`
 - [x] Menu-bar app: Fn hold / double-tap lock → record → transcribe → clean → paste, pill with waveform
 
 ### v1
-- [ ] Onboarding window
-- [ ] Modes + per-app auto-pick + Fn+Ctrl raw; settings UI with slider
-- [ ] MLX cleanup engine (Qwen3 4B / 1.7B), model download manager with progress
-- [ ] "Undo · Raw" swap
-- [ ] Dictionary + snippets
-- [ ] History window with raw/clean diff, persistence and retention
-- [ ] Music pause, sound cues, silence trimming, mic picker
-- [ ] Eval set (~40 messy→clean pairs) + `chordy eval`
-- [ ] README with the Open Anyway walkthrough, release script
+- [x] Onboarding window
+- [x] Modes + per-app auto-pick + Fn+Ctrl raw; settings UI with slider
+- [ ] MLX cleanup engine (Qwen3 4B / 1.7B), model download manager with progress. Code is in `Packages/ChordyMLX`; it needs the Metal toolchain before it can be linked, and it hasn't been run because huggingface.co is blocked on the dev network
+- [x] "↩ Raw" swap (⌘Z, or backspaces in terminals, then paste the raw text) + menu "Paste Last as Raw"
+- [x] Dictionary + snippets
+- [x] History window with raw/clean diff, persistence and retention
+- [x] Music pause, sound cues, silence trimming, mic picker
+- [x] Eval set (40 messy→clean pairs) + `chordy eval`. Apple Intelligence baseline: 25/40 exact, 0.95 similarity, every trap passed
+- [x] README with the Open Anyway walkthrough, release script
 
 ### v1.1
-Command mode (rewrite selection) · French · stats · cursor-context opt-in · custom instructions box
+Command mode (rewrite selection) · French · stats · cursor-context opt-in
 
 ### v2
 iPhone keyboard extension + app-bounce (needs the $99 account to ship to others) · project-aware vocabulary · whisper mode · integrations (URL scheme, Shortcuts, CLI dictation)

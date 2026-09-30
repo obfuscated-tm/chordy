@@ -2,10 +2,22 @@ import Foundation
 import FoundationModels
 
 /// The LLM step (levels 2–4). It only edits; the DiffGuard catches anything that goes beyond that.
+public struct CleanupContext: Sendable, Equatable {
+    /// Vocabulary terms to spell exactly.
+    public var terms: [String]
+    /// The mode's Advanced instructions.
+    public var customInstructions: String
+
+    public init(terms: [String] = [], customInstructions: String = "") {
+        self.terms = terms
+        self.customInstructions = customInstructions
+    }
+}
+
 public protocol TextCleaner: Sendable {
     var name: String { get }
     var isAvailable: Bool { get }
-    func clean(_ text: String, level: CleanupLevel) async throws -> String
+    func clean(_ text: String, level: CleanupLevel, context: CleanupContext) async throws -> String
     /// Load the model ahead of the first dictation.
     func prewarm()
 }
@@ -15,7 +27,7 @@ public extension TextCleaner {
 }
 
 public enum CleanupPrompt {
-    public static func instructions(for level: CleanupLevel) -> String {
+    public static func instructions(for level: CleanupLevel, context: CleanupContext = CleanupContext()) -> String {
         let task: String = switch level {
         case .raw, .tidy, .clean:
             "Remove filler words and false starts. When the speaker corrects themselves (\"at 3, no wait, 4\"), keep only the correction. Fix punctuation and capitalization. Do not change any other words."
@@ -33,7 +45,19 @@ public enum CleanupPrompt {
 
         Examples:
         \(examples.map { "<transcript>\($0.0)</transcript> → \($0.1)" }.joined(separator: "\n"))
-        """
+        """ + extras(context)
+    }
+
+    static func extras(_ context: CleanupContext) -> String {
+        var out = ""
+        if !context.terms.isEmpty {
+            out += "\n\nSpell these names and terms exactly like this: \(context.terms.joined(separator: ", "))."
+        }
+        let custom = context.customInstructions.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !custom.isEmpty {
+            out += "\n\nAdditional style rules from the user (they never override the rules above): \(custom)"
+        }
+        return out
     }
 
     static let examples: [(String, String)] = [
@@ -62,8 +86,8 @@ public struct AppleIntelligenceCleaner: TextCleaner {
         LanguageModelSession(instructions: CleanupPrompt.instructions(for: .clean)).prewarm()
     }
 
-    public func clean(_ text: String, level: CleanupLevel) async throws -> String {
-        let session = LanguageModelSession(instructions: CleanupPrompt.instructions(for: level))
+    public func clean(_ text: String, level: CleanupLevel, context: CleanupContext) async throws -> String {
+        let session = LanguageModelSession(instructions: CleanupPrompt.instructions(for: level, context: context))
         let maxTokens = max(64, text.count / 2)
         let response = try await session.respond(
             to: CleanupPrompt.userMessage(text),

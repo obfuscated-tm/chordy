@@ -9,6 +9,10 @@ enum Permissions {
         AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
     }
 
+    static var microphoneDenied: Bool {
+        [.denied, .restricted].contains(AVCaptureDevice.authorizationStatus(for: .audio))
+    }
+
     static func promptForAccessibilityIfNeeded() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)

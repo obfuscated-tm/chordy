@@ -6,11 +6,29 @@ struct SettingsView: View {
     @Bindable var model: AppModel
 
     var body: some View {
+        TabView {
+            Tab("General", systemImage: "gearshape") { GeneralSettings(model: model) }
+            Tab("Modes", systemImage: "slider.horizontal.3") { ModesSettings(model: model) }
+            Tab("Dictionary", systemImage: "character.book.closed") { DictionarySettings(model: model) }
+        }
+        .frame(width: 640, height: 560)
+    }
+}
+
+private struct GeneralSettings: View {
+    @Bindable var model: AppModel
+    @State private var microphones = AudioInputDevice.all()
+
+    var body: some View {
         Form {
             Section {
                 ForEach(ShortcutAction.allCases) { action in
                     LabeledContent {
-                        ShortcutRecorder(model: model, action: action)
+                        ShortcutRecorder(
+                            model: model,
+                            binding: action.rawValue,
+                            shortcut: Binding(get: { model.shortcuts[action] }, set: { model.shortcuts[action] = $0 })
+                        )
                     } label: {
                         Text(action.title)
                         Text(action.subtitle)
@@ -33,33 +51,48 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
 
-            Section("Transcription") {
-                Picker("Speech engine", selection: $model.engineChoice) {
+            Section("Engines") {
+                Picker("Speech", selection: $model.engineChoice) {
                     ForEach(EngineChoice.allCases) { Text($0.label).tag($0) }
                 }
                 if let warning = model.engineWarning {
                     Text(warning).font(.caption).foregroundStyle(.orange)
                 }
-                LabeledContent("Cleanup") {
-                    CleanupSlider(level: $model.cleanupLevel)
+                Picker("Cleanup", selection: $model.cleanupEngine) {
+                    ForEach(CleanupEngine.available) { Text($0.label).tag($0) }
                 }
-                Toggle("Coding rules", isOn: $model.devRules)
-                Text("“at src slash app dot ts” → @src/app.ts, “camel case user name” → userName")
+                if let status = model.cleanupStatus {
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                }
+                Picker("Microphone", selection: $model.microphoneUID) {
+                    Text("System Default").tag(String?.none)
+                    ForEach(microphones) { Text($0.name).tag(Optional($0.id)) }
+                }
+                .onAppear { microphones = AudioInputDevice.all() }
+            }
+
+            Section("While Dictating") {
+                Toggle("Play sounds", isOn: $model.soundsEnabled)
+                Toggle("Pause Music and Spotify", isOn: $model.pauseMedia)
+            }
+
+            Section {
+                Picker("Keep history", selection: $model.historyRetention) {
+                    ForEach(HistoryRetention.allCases) { Text($0.label).tag($0) }
+                }
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Only text is saved, on this Mac. Audio is never kept.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Section("Feedback") {
-                Toggle("Play sounds", isOn: $model.soundsEnabled)
-            }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
-        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
-private struct CleanupSlider: View {
+struct CleanupSlider: View {
     @Binding var level: CleanupLevel
 
     private static let details: [CleanupLevel: String] = [
@@ -88,7 +121,10 @@ private struct CleanupSlider: View {
 /// Click, then press the keys you want. Modifier-only shortcuts (fn, Right ⌥, fn ⌃…) are recorded when you let go.
 struct ShortcutRecorder: View {
     let model: AppModel
-    let action: ShortcutAction
+    /// "dictate", "dictateRaw" or "mode:<uuid>", for conflict checks.
+    let binding: String
+    @Binding var shortcut: Shortcut?
+    var clearable = false
 
     @State private var recording = false
     @State private var monitor: Any?
@@ -104,8 +140,10 @@ struct ShortcutRecorder: View {
                         Text(peak.isEmpty ? "Press keys…" : Shortcut.modifierOnly(peak).displayName)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 6)
-                    } else if let shortcut = model.shortcuts[action] {
+                    } else if let shortcut {
                         ForEach(shortcut.keycaps, id: \.self) { Keycap(text: $0) }
+                    } else {
+                        Text("Record Shortcut").foregroundStyle(.secondary).padding(.horizontal, 6)
                     }
                 }
                 .frame(minWidth: 120, minHeight: 24)
@@ -120,6 +158,18 @@ struct ShortcutRecorder: View {
                 )
             }
             .buttonStyle(.plain)
+            .overlay(alignment: .trailing) {
+                if clearable, shortcut != nil, !recording {
+                    Button {
+                        shortcut = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 20)
+                    .help("Remove shortcut")
+                }
+            }
             if let message {
                 Text(message).font(.caption).foregroundStyle(.orange)
             }
@@ -191,8 +241,8 @@ struct ShortcutRecorder: View {
     }
 
     private func commit(_ shortcut: Shortcut) {
-        if let other = ShortcutAction.allCases.first(where: { $0 != action && model.shortcuts[$0] == shortcut }) {
-            message = "Already used for “\(other.title)”"
+        if let other = model.owner(of: shortcut, except: binding) {
+            message = "Already used for “\(other)”"
             peak = []
             held = []
             return
@@ -203,7 +253,7 @@ struct ShortcutRecorder: View {
         } else {
             message = nil
         }
-        model.shortcuts[action] = shortcut
+        self.shortcut = shortcut
         stop()
     }
 }

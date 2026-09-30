@@ -26,12 +26,17 @@ public final class AppleSpeechTranscriber: Transcriber, @unchecked Sendable {
         progress(1)
     }
 
-    public func transcribe(_ samples: [Float]) async throws -> String {
+    public func transcribe(_ samples: [Float], hints: [String]) async throws -> String {
         if locale == nil { try await prepare { _ in } }
         guard let locale, !samples.isEmpty, let buffer = AudioFormat.buffer(from: samples) else { return "" }
 
         let module = SpeechTranscriber(locale: locale, preset: .transcription)
         let analyzer = SpeechAnalyzer(modules: [module])
+        if !hints.isEmpty {
+            let context = AnalysisContext()
+            context.contextualStrings[.general] = hints
+            try? await analyzer.setContext(context)
+        }
         let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) ?? AudioFormat.format
         let input = try AudioFormat.convert(buffer, to: format)
 

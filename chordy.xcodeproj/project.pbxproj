@@ -271,6 +271,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Chordy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Chordy can pause Music or Spotify while you dictate, then resume it.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Chordy listens while you hold the Fn key and turns your speech into text. Audio never leaves your Mac.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Chordy can use Apple's on-device speech recognition to transcribe your dictation.";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -302,6 +303,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Chordy;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Chordy can pause Music or Spotify while you dictate, then resume it.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Chordy listens while you hold the Fn key and turns your speech into text. Audio never leaves your Mac.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Chordy can use Apple's on-device speech recognition to transcribe your dictation.";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";

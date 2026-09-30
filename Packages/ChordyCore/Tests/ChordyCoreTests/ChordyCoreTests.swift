@@ -78,7 +78,7 @@ import Testing
         var output: String
         let name = "fake"
         let isAvailable = true
-        func clean(_ text: String, level: CleanupLevel) async throws -> String { output }
+        func clean(_ text: String, level: CleanupLevel, context: CleanupContext) async throws -> String { output }
     }
 
     @Test func rawLevelIsVerbatim() async {
@@ -109,7 +109,7 @@ import Testing
     @Test func devRulesRunBeforeTheLLM() async {
         struct EchoCleaner: TextCleaner {
             let name = "echo", isAvailable = true
-            func clean(_ text: String, level: CleanupLevel) async throws -> String { text }
+            func clean(_ text: String, level: CleanupLevel, context: CleanupContext) async throws -> String { text }
         }
         let r = await Pipeline(cleaner: EchoCleaner()).process("rename it to camel case user name now", level: .clean, devRules: true)
         #expect(r.text == "Rename it to userName now")

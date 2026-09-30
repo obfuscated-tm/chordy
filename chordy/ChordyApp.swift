@@ -25,6 +25,18 @@ struct ChordyApp: App {
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
+
+        Window("Chordy History", id: "history") {
+            HistoryView(model: delegate.model)
+        }
+        .defaultLaunchBehavior(.suppressed)
+
+        Window("Welcome to Chordy", id: "onboarding") {
+            OnboardingView(model: delegate.model)
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .defaultLaunchBehavior(delegate.model.hasOnboarded ? .suppressed : .presented)
     }
 }
 
@@ -55,34 +67,46 @@ struct MenuContent: View {
             Button("Grant Microphone Access…") { Permissions.openMicrophoneSettings() }
         }
 
-        Divider()
-        Picker("Speech Engine", selection: $model.engineChoice) {
-            ForEach(EngineChoice.allCases) { Text($0.label).tag($0) }
+        if let status = model.cleanupStatus {
+            Text(status)
         }
-        Picker("Cleanup", selection: $model.cleanupLevel) {
-            ForEach(CleanupLevel.allCases, id: \.self) { Text("\($0.rawValue) · \($0.name)").tag($0) }
-        }
-        Toggle("Coding Rules (@paths, camel case…)", isOn: $model.devRules)
 
-        if !model.history.isEmpty {
+        Divider()
+        Picker("Mode", selection: $model.forcedModeID) {
+            Text("Automatic (\(model.modeForFrontmostApp.name))").tag(UUID?.none)
             Divider()
+            ForEach(model.modes) { mode in
+                Label(mode.name, systemImage: mode.symbol).tag(Optional(mode.id))
+            }
+        }
+
+        Divider()
+        if !model.history.isEmpty {
             Menu("Recent") {
                 ForEach(model.history.prefix(10)) { entry in
                     Button(entry.preview) { model.copyToClipboard(entry.text) }
                 }
+                Divider()
+                Text("Click to copy")
             }
+            Button("Paste Last as Raw") { model.pasteLastRaw() }
         }
+        Button("History…") { show("history") }
+            .keyboardShortcut("y")
 
         Divider()
         if let dictate = model.shortcuts[.dictate] {
             Text("Hold \(dictate.displayName) to dictate · double-tap to lock")
         }
-        Button("Settings…") {
-            NSApp.activate()
-            openWindow(id: "settings")
-        }
-        .keyboardShortcut(",")
+        Button("Settings…") { show("settings") }
+            .keyboardShortcut(",")
+        Button("Setup Guide…") { show("onboarding") }
         Button("Quit Chordy") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
+    }
+
+    private func show(_ id: String) {
+        NSApp.activate()
+        openWindow(id: id)
     }
 }

@@ -10,6 +10,9 @@ public enum DiffGuard {
         public var droppedRatio: Double
     }
 
+    /// Spoken self-corrections: the words before them are meant to be dropped.
+    static let correctionCues = ["no wait", "sorry i mean", "i mean", "actually", "scratch that", "no no", "correction"]
+
     static let assistantOpeners = ["sure", "here is", "here's", "certainly", "of course", "i can", "i'm sorry", "as an ai"]
 
     public static func check(input: String, output: String, level: CleanupLevel) -> Verdict {
@@ -20,12 +23,22 @@ public enum DiffGuard {
         var pool = counts(a)
         var novel = 0
         for w in b {
-            if let n = pool[w], n > 0 { pool[w] = n - 1 } else { novel += 1 }
+            if let n = pool[w], n > 0 {
+                pool[w] = n - 1
+            } else if level == .polish, w.count <= 2, Int(w) != nil {
+                continue  // list numbering, "1." "2." when formatting a list
+            } else {
+                novel += 1
+            }
         }
         let novelRatio = Double(novel) / Double(b.count)
         let droppedRatio = Double(pool.values.reduce(0, +)) / Double(a.count)
 
-        let (maxNovel, maxDropped) = limits(for: level)
+        var (maxNovel, maxDropped) = limits(for: level)
+        let spoken = " " + a.joined(separator: " ") + " "
+        if level >= .clean, correctionCues.contains(where: { spoken.contains(" \($0) ") }) {
+            maxDropped = max(maxDropped, 0.6)
+        }
         let lower = output.lowercased().trimmingCharacters(in: .whitespaces)
         let soundsLikeAssistant = assistantOpeners.contains { lower.hasPrefix($0) }
             && !input.lowercased().trimmingCharacters(in: .whitespaces).hasPrefix(String(lower.prefix(4)))

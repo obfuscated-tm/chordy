@@ -53,15 +53,20 @@ public actor WhisperTranscriber: Transcriber {
         progress(1)
     }
 
-    public func transcribe(_ samples: [Float]) async throws -> String {
+    public func transcribe(_ samples: [Float], hints: [String]) async throws -> String {
         if kit == nil { try await prepare { _ in } }
         guard let kit, !samples.isEmpty else { return "" }
-        let options = DecodingOptions(language: "en", skipSpecialTokens: true, withoutTimestamps: true)
+        var options = DecodingOptions(language: "en", skipSpecialTokens: true, withoutTimestamps: true)
+        // Whisper's "previous text" prompt biases it towards these spellings.
+        if !hints.isEmpty, let tokenizer = kit.tokenizer {
+            options.promptTokens = tokenizer.encode(text: " " + hints.joined(separator: ", "))
+                .filter { $0 < tokenizer.specialTokens.specialTokenBegin }
+        }
         let results = try await kit.transcribe(audioArray: samples, decodeOptions: options)
         return results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func explain(_ error: Error) -> String {
+    public static func explain(_ error: Error) -> String {
         let ns = error as NSError
         if ns.domain == NSURLErrorDomain, [-1202, -1201, -1203, -1204, -1205, -1206].contains(ns.code) {
             return "Couldn't download the Whisper model: huggingface.co's certificate was rejected. A network filter (school or work) is probably intercepting it. Try another network; Chordy uses Apple Speech until then."
