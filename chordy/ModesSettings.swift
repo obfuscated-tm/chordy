@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 struct ModesSettings: View {
     @Bindable var model: AppModel
-    @State private var selection: Mode.ID?
+    @State var selection: Mode.ID?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -100,14 +100,7 @@ private struct ModeEditor: View {
         Form {
             Section {
                 HStack {
-                    Menu {
-                        ForEach(Self.symbols, id: \.self) { symbol in
-                            Button { mode.symbol = symbol } label: { Image(systemName: symbol) }
-                        }
-                    } label: {
-                        Image(systemName: mode.symbol)
-                    }
-                    .fixedSize()
+                    SymbolPicker(symbol: $mode.symbol, symbols: Self.symbols)
                     TextField("Name", text: $mode.name)
                         .textFieldStyle(.roundedBorder)
                 }
@@ -223,6 +216,44 @@ private struct ModeEditor: View {
             model.modes[i].apps.removeAll { $0.bundleID == app.bundleID }
         }
         if !mode.apps.contains(where: { $0.bundleID == app.bundleID }) { mode.apps.append(app) }
+    }
+}
+
+/// Icon-only items don't render in macOS menus, so the icons live in a popover grid.
+private struct SymbolPicker: View {
+    @Binding var symbol: String
+    let symbols: [String]
+    @State private var open = false
+
+    var body: some View {
+        Button { open.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: symbol).frame(width: 18)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
+            }
+        }
+        .help("Choose an icon")
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(32), spacing: 4), count: 6), spacing: 4) {
+                ForEach(symbols, id: \.self) { candidate in
+                    Button {
+                        symbol = candidate
+                        open = false
+                    } label: {
+                        Image(systemName: candidate)
+                            .font(.system(size: 14))
+                            .frame(width: 32, height: 32)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(candidate == symbol ? Color.chordy.opacity(0.25) : Color.primary.opacity(0.05))
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+        }
     }
 }
 

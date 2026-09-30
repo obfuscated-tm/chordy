@@ -9,6 +9,7 @@ struct ChordyApp: App {
     init() {
         #if DEBUG
         PillSnapshots.renderIfRequested()
+        Showcase.runIfRequested()
         #endif
         #if DEBUG && canImport(ChordyMLX)
         MLXEvalHook.runIfRequested()
@@ -47,6 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        if Showcase.active { return }
+        #endif
         model.start()
     }
 }

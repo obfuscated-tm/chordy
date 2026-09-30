@@ -91,8 +91,8 @@ final class AppModel {
     var engineWarning: String?
     var cleanupStatus: String?
     /// The models actually in use right now (they can differ from Settings while downloads finish).
-    private(set) var speechInUse: String?
-    private(set) var cleanupInUse: String?
+    var speechInUse: String?
+    var cleanupInUse: String?
     var lastError: String?
     var accessibilityGranted = Permissions.accessibilityGranted
     var microphoneGranted = Permissions.microphoneGranted

@@ -3,13 +3,17 @@ import ChordyCore
 import SwiftUI
 
 struct SettingsView: View {
+    enum Page: Hashable { case general, modes, dictionary }
+
     @Bindable var model: AppModel
+    @State var page = Page.general
+    var initialMode: Mode.ID?
 
     var body: some View {
-        TabView {
-            Tab("General", systemImage: "gearshape") { GeneralSettings(model: model) }
-            Tab("Modes", systemImage: "slider.horizontal.3") { ModesSettings(model: model) }
-            Tab("Dictionary", systemImage: "character.book.closed") { DictionarySettings(model: model) }
+        TabView(selection: $page) {
+            Tab("General", systemImage: "gearshape", value: .general) { GeneralSettings(model: model) }
+            Tab("Modes", systemImage: "slider.horizontal.3", value: .modes) { ModesSettings(model: model, selection: initialMode) }
+            Tab("Dictionary", systemImage: "character.book.closed", value: .dictionary) { DictionarySettings(model: model) }
         }
         .frame(width: 640, height: 560)
     }

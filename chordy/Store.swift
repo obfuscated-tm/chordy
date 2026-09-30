@@ -36,6 +36,9 @@ enum HistoryRetention: Int, CaseIterable, Identifiable {
 
 /// JSON files in ~/Library/Application Support/Chordy.
 enum Store {
+    /// Set by the DEBUG showcase so sample data never overwrites real files.
+    static var readOnly = false
+
     static let directory: URL = {
         let url = URL.applicationSupportDirectory.appending(path: "Chordy", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -48,11 +51,13 @@ enum Store {
     }
 
     static func save(_ value: some Encodable, to name: String) {
+        guard !readOnly else { return }
         guard let data = try? JSONEncoder.chordy.encode(value) else { return }
         try? data.write(to: directory.appending(path: name), options: .atomic)
     }
 
     static func delete(_ name: String) {
+        guard !readOnly else { return }
         try? FileManager.default.removeItem(at: directory.appending(path: name))
     }
 }

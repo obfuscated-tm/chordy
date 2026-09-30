@@ -10,7 +10,7 @@ struct OnboardingView: View {
 
     @Bindable var model: AppModel
     @Environment(\.dismissWindow) private var dismissWindow
-    @State private var step = Step.welcome
+    @State var step = Step.welcome
     @State private var preset = SetupPreset.recommended
     @State private var fnDoesNothing = FnKeySetting.doesNothing
     @State private var practice = ""
