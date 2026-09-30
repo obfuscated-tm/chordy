@@ -70,9 +70,8 @@ struct MenuContent: View {
             Button("Grant Microphone Access…") { Permissions.openMicrophoneSettings() }
         }
 
-        if let status = model.cleanupStatus {
-            Text(status)
-        }
+        Text("Speech: \(model.speechInUse ?? "not ready")")
+        Text("Cleanup: \(model.cleanupStatus ?? model.cleanupInUse ?? "off (Apple Intelligence unavailable)")")
 
         Divider()
         Picker("Mode", selection: $model.forcedModeID) {

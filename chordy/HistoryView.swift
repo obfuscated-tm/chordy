@@ -71,6 +71,11 @@ private struct HistoryDetail: View {
                         Text("·")
                         Text(app)
                     }
+                    if let speech = entry.speechModel {
+                        Spacer()
+                        Text("\(speech) → \(entry.cleanupModel ?? "?")")
+                            .help("Speech model → cleanup model. “Rules only” means it was short enough, or the mode light enough, not to need the language model.")
+                    }
                 }
                 .font(.callout)
                 .foregroundStyle(.secondary)

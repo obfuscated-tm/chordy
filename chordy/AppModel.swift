@@ -90,6 +90,9 @@ final class AppModel {
     var engineStatus = "Starting…"
     var engineWarning: String?
     var cleanupStatus: String?
+    /// The models actually in use right now (they can differ from Settings while downloads finish).
+    private(set) var speechInUse: String?
+    private(set) var cleanupInUse: String?
     var lastError: String?
     var accessibilityGranted = Permissions.accessibilityGranted
     var microphoneGranted = Permissions.microphoneGranted
@@ -320,6 +323,7 @@ final class AppModel {
             do {
                 try await apple.prepare { _ in }
                 transcriber = apple
+                speechInUse = apple.name
                 engineStatus = "Ready · Apple Speech"
             } catch {
                 engineStatus = "Apple Speech unavailable: \(error.localizedDescription)"
@@ -338,6 +342,7 @@ final class AppModel {
             }
             guard engineChoice == choice else { return }
             transcriber = whisper
+            speechInUse = whisper.name
             engineStatus = "Ready · \(whisper.name)"
         } catch {
             guard engineChoice == choice else { return }
@@ -350,6 +355,7 @@ final class AppModel {
     private func prepareCleaner() async {
         cleanupStatus = nil
         pipeline.cleaner = appleCleaner
+        cleanupInUse = appleCleaner.isAvailable ? appleCleaner.name : nil
         appleCleaner.prewarm()
         #if canImport(ChordyMLX)
         guard cleanupEngine != .apple else { return }
@@ -364,6 +370,7 @@ final class AppModel {
             }
             guard cleanupEngine == choice else { return }
             pipeline.cleaner = mlx
+            cleanupInUse = mlx.name
             cleanupStatus = nil
         } catch {
             guard cleanupEngine == choice else { return }
@@ -493,6 +500,7 @@ final class AppModel {
         let options = Pipeline.Options(mode: mode, vocabulary: vocabulary, snippets: snippets)
         let hints = vocabulary.terms
         let pipeline = pipeline
+        let models = (speech: transcriber.name, cleanup: pipeline.cleaner?.name)
         let app = NSWorkspace.shared.frontmostApplication
         Task {
             do {
@@ -505,7 +513,11 @@ final class AppModel {
                     raw: rawText, text: result.text, bundleID: app?.bundleIdentifier,
                     usesBackspace: Mode.builtIn(.terminal).apps.contains { $0.bundleID == app?.bundleIdentifier }
                 )
-                record(HistoryEntry(raw: rawText, text: result.text, mode: mode.name, app: app?.localizedName))
+                let cleanedBy = result.usedLLM ? models.cleanup : nil
+                record(HistoryEntry(
+                    raw: rawText, text: result.text, mode: mode.name, app: app?.localizedName,
+                    speechModel: models.speech, cleanupModel: cleanedBy ?? "Rules only"
+                ))
                 finish(with: .pasted(undoable: rawText != result.text && result.snippet == nil))
             } catch {
                 lastError = error.localizedDescription

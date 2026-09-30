@@ -9,6 +9,9 @@ struct HistoryEntry: Identifiable, Codable, Hashable {
     var text: String
     var mode: String
     var app: String?
+    /// Which models produced it. Optional so older history still loads.
+    var speechModel: String?
+    var cleanupModel: String?
 
     var preview: String {
         let flat = text.replacingOccurrences(of: "\n", with: " ")

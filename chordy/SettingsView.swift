@@ -58,12 +58,14 @@ private struct GeneralSettings: View {
                 if let warning = model.engineWarning {
                     Text(warning).font(.caption).foregroundStyle(.orange)
                 }
+                InUse(name: model.speechInUse)
                 Picker("Cleanup", selection: $model.cleanupEngine) {
                     ForEach(CleanupEngine.available) { Text($0.label).tag($0) }
                 }
                 if let status = model.cleanupStatus {
                     Text(status).font(.caption).foregroundStyle(.secondary)
                 }
+                InUse(name: model.cleanupInUse)
                 Picker("Microphone", selection: $model.microphoneUID) {
                     Text("System Default").tag(String?.none)
                     ForEach(microphones) { Text($0.name).tag(Optional($0.id)) }
@@ -89,6 +91,17 @@ private struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Shows the model actually running, which lags the picker while a download finishes.
+private struct InUse: View {
+    let name: String?
+
+    var body: some View {
+        Label("In use: \(name ?? "not ready")", systemImage: name == nil ? "hourglass" : "checkmark.circle.fill")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 
