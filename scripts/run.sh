@@ -10,7 +10,7 @@ CONFIG="${1:-Debug}"
 xcodebuild -project chordy.xcodeproj -scheme "Chordy App" -configuration "$CONFIG" -destination "platform=macOS,arch=arm64" \
   -derivedDataPath "$DERIVED" -allowProvisioningUpdates -skipMacroValidation -quiet build
 
-pkill -x Chordy 2>/dev/null || true
+pkill -x Chordy 2>/dev/null && sleep 1 || true
 mkdir -p ~/Applications
 rm -rf ~/Applications/Chordy.app
 ditto "$DERIVED/Build/Products/$CONFIG/Chordy.app" ~/Applications/Chordy.app
