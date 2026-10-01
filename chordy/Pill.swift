@@ -125,7 +125,7 @@ private struct PillContent: View {
                 Text(model.activeMode.level.usesLLM ? "Cleaning up" : "Transcribing")
                     .modifier(PillLabel())
             case .done(let outcome):
-                OutcomeView(outcome: outcome, undo: model.undoToRaw)
+                OutcomeView(outcome: outcome, undo: model.undoToRaw, undoNeoPlan: model.undoNeoPlan)
             }
         }
         .fixedSize()
@@ -170,10 +170,12 @@ private struct PillContent: View {
 private struct OutcomeView: View {
     let outcome: AppModel.Outcome
     let undo: () -> Void
+    let undoNeoPlan: () -> Void
 
     var body: some View {
         let (symbol, color, text): (String, Color, String) = switch outcome {
         case .pasted: ("checkmark.circle.fill", .green, "Pasted")
+        case .neoPlan(let message, _): ("checklist.checked", .green, message)
         case .nothingHeard: ("waveform.slash", .chordyMuted, "Didn't catch that")
         case .cancelled: ("xmark.circle.fill", .chordyMuted, "Cancelled")
         case .failed(let message): ("exclamationmark.triangle.fill", .orange, message)
@@ -183,20 +185,32 @@ private struct OutcomeView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(color)
                 .symbolEffect(.bounce, value: text)
-            Text(text).modifier(PillLabel(emphasized: true))
+            // neo-plan titles can be long; the pill can't grow past its panel.
+            Text(text).modifier(PillLabel(emphasized: true)).truncationMode(.middle).frame(maxWidth: 280)
             if outcome == .pasted(undoable: true) {
-                Button(action: undo) {
-                    Label("Raw", systemImage: "arrow.uturn.backward")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(.white.opacity(0.14)))
-                }
-                .buttonStyle(.plain)
-                .help("Replace with exactly what you said")
+                PillButton(title: "Raw", action: undo).help("Replace with exactly what you said")
+            }
+            if case .neoPlan(_, undoable: true) = outcome {
+                PillButton(title: "Undo", action: undoNeoPlan).help("Take this back in neo-plan")
             }
         }
+    }
+}
+
+private struct PillButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: "arrow.uturn.backward")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(.white.opacity(0.14)))
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -104,6 +104,15 @@ The **Cleanup** slider has five steps: **Raw → Tidy → Clean → Smooth → P
 
 **Snippets.** Say a short phrase and get longer text. For example, saying "my email" types `me@example.com`.
 
+## neo-plan (optional)
+
+If you use [neo-plan](https://neo-plan.vercel.app), Chordy can talk to it. Both features are **off** until you turn them on in **Settings → neo-plan**:
+
+- **Add items by voice.** Hold **fn + ⌥** and say "chemistry quiz due Friday". It shows up in that class, on Friday.
+- **Mark done and turned in by voice.** Hold **fn + ⌥** and say "done with problem set 4" or "turned in the titration lab".
+
+The pill tells you what changed, with an **Undo** button for a few seconds. To connect, make a token in neo-plan (**Settings → Extension → New token**) and paste it into Chordy. It's kept in your Keychain.
+
 ## History
 
 Menu-bar icon → **History…** shows everything you've said in the last 30 days, what Chordy changed (red = removed, green = added), and buttons to copy it again.
@@ -161,7 +170,7 @@ Quit: menu-bar icon → **Quit Chordy**. Uninstall: drag Chordy from Application
 
 ## Privacy
 
-Everything happens **on your Mac**. No accounts, no internet needed after setup, no tracking. Audio is thrown away as soon as it's turned into text. The only thing Chordy ever downloads is the speech and cleanup models, once.
+Everything happens **on your Mac**. No accounts, no internet needed after setup, no tracking. Audio is thrown away as soon as it's turned into text. The only thing Chordy ever downloads is the speech and cleanup models, once. The one exception is neo-plan, if you turn it on: then whatever you say with the neo-plan shortcut (and only that) is sent to neo-plan.
 
 ---
 

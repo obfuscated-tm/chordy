@@ -3,7 +3,7 @@ import ChordyCore
 import SwiftUI
 
 struct SettingsView: View {
-    enum Page: Hashable { case general, modes, dictionary }
+    enum Page: Hashable { case general, modes, dictionary, neoPlan }
 
     @Bindable var model: AppModel
     @State var page = Page.general
@@ -14,6 +14,7 @@ struct SettingsView: View {
             Tab("General", systemImage: "gearshape", value: .general) { GeneralSettings(model: model) }
             Tab("Modes", systemImage: "slider.horizontal.3", value: .modes) { ModesSettings(model: model, selection: initialMode) }
             Tab("Dictionary", systemImage: "character.book.closed", value: .dictionary) { DictionarySettings(model: model) }
+            Tab("neo-plan", systemImage: "checklist", value: .neoPlan) { NeoPlanSettings(model: model) }
         }
         .frame(width: 640, height: 560)
     }

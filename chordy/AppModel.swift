@@ -76,6 +76,16 @@ final class AppModel {
 
     enum Outcome: Equatable {
         case pasted(undoable: Bool), nothingHeard, cancelled, failed(String)
+        /// Something changed in neo-plan; undoable until the pill hides.
+        case neoPlan(String, undoable: Bool)
+    }
+
+    /// How to take back the last neo-plan change.
+    enum NeoPlanUndo {
+        case remove(String)
+        case notDone(String)
+        /// Put back, and also mark not done when the turn-in had to mark it done first.
+        case putBack(String, alsoNotDone: Bool)
     }
 
     /// What was pasted last, so it can be swapped for the raw transcript.
@@ -105,6 +115,7 @@ final class AppModel {
     /// Set while the settings window is recording a new shortcut, so keys don't trigger dictation.
     var shortcutsSuspended = false
     private(set) var lastPaste: LastPaste?
+    private var neoPlanUndo: NeoPlanUndo?
 
     var modeName: String { activeMode.name }
 
@@ -166,6 +177,37 @@ final class AppModel {
         }
     }
 
+    // neo-plan (Settings → neo-plan). Both off until turned on; the shortcut only listens while one is on.
+    static let neoPlanBinding = "neoplan"
+    static let neoPlanMode = Mode(
+        id: UUID(uuidString: "C40D0000-0000-0000-0000-0000000000AA")!,
+        name: "neo-plan", symbol: "checklist", level: .tidy, devRules: false
+    )
+    var neoPlanAdd: Bool {
+        didSet {
+            UserDefaults.standard.set(neoPlanAdd, forKey: "neoPlanAdd")
+            rebuildMatcher()
+        }
+    }
+    var neoPlanMark: Bool {
+        didSet {
+            UserDefaults.standard.set(neoPlanMark, forKey: "neoPlanMark")
+            rebuildMatcher()
+        }
+    }
+    var neoPlanShortcut: Shortcut? {
+        didSet {
+            UserDefaults.standard.set(try? JSONEncoder().encode(neoPlanShortcut), forKey: "neoPlanShortcut")
+            rebuildMatcher()
+        }
+    }
+    var neoPlanURL: String {
+        didSet { UserDefaults.standard.set(neoPlanURL, forKey: "neoPlanURL") }
+    }
+    /// A token is saved in the Keychain.
+    private(set) var neoPlanConnected: Bool
+    var neoPlanEnabled: Bool { neoPlanAdd || neoPlanMark }
+
     // MARK: Engines
 
     private let recorder = AudioRecorder()
@@ -197,6 +239,13 @@ final class AppModel {
         vocabulary = Store.load(Vocabulary.self, from: "vocabulary.json") ?? Vocabulary()
         snippets = Store.load([Snippet].self, from: "snippets.json") ?? []
         history = Store.load([HistoryEntry].self, from: "history.json") ?? []
+        neoPlanAdd = defaults.bool(forKey: "neoPlanAdd")
+        neoPlanMark = defaults.bool(forKey: "neoPlanMark")
+        neoPlanShortcut = defaults.object(forKey: "neoPlanShortcut") == nil
+            ? .modifierOnly([.fn, .leftOption])
+            : defaults.data(forKey: "neoPlanShortcut").flatMap { try? JSONDecoder().decode(Shortcut?.self, from: $0) } ?? nil
+        neoPlanURL = defaults.string(forKey: "neoPlanURL") ?? NeoPlanClient.defaultURL.absoluteString
+        neoPlanConnected = Keychain.neoPlanToken != nil
         pipeline = Pipeline(cleaner: appleCleaner)
         rebuildMatcher()
         pruneHistory()
@@ -218,6 +267,7 @@ final class AppModel {
         for mode in modes {
             if let shortcut = mode.shortcut { bindings["mode:\(mode.id.uuidString)"] = shortcut }
         }
+        if neoPlanEnabled, let neoPlanShortcut { bindings[Self.neoPlanBinding] = neoPlanShortcut }
         matcher = ShortcutMatcher(bindings: bindings)
     }
 
@@ -240,7 +290,7 @@ final class AppModel {
     }
 
     var usesFnKey: Bool {
-        (Array(shortcuts.values) + modes.compactMap(\.shortcut)).contains { $0.modifierKeys.contains(.fn) }
+        (Array(shortcuts.values) + modes.compactMap(\.shortcut) + [neoPlanEnabled ? neoPlanShortcut : nil].compactMap { $0 }).contains { $0.modifierKeys.contains(.fn) }
     }
 
     func start() {
@@ -284,6 +334,7 @@ final class AppModel {
 
     private func mode(for binding: String) -> Mode {
         if binding == ShortcutAction.dictateRaw.rawValue { return rawMode }
+        if binding == Self.neoPlanBinding { return Self.neoPlanMode }
         if binding.hasPrefix("mode:"), let id = UUID(uuidString: String(binding.dropFirst(5))),
            let mode = modes.first(where: { $0.id == id }) {
             return mode
@@ -294,6 +345,7 @@ final class AppModel {
 
     func shortcut(for binding: String) -> Shortcut? {
         if let action = ShortcutAction(rawValue: binding) { return shortcuts[action] }
+        if binding == Self.neoPlanBinding { return neoPlanShortcut }
         return modes.first { "mode:\($0.id.uuidString)" == binding }?.shortcut
     }
 
@@ -305,6 +357,7 @@ final class AppModel {
         for mode in modes where "mode:\(mode.id.uuidString)" != binding && mode.shortcut == shortcut {
             return "\(mode.name) mode"
         }
+        if binding != Self.neoPlanBinding, neoPlanShortcut == shortcut { return "Talk to neo-plan" }
         return nil
     }
 
@@ -497,7 +550,11 @@ final class AppModel {
         }
         phase = .processing
         let mode = activeMode
-        let options = Pipeline.Options(mode: mode, vocabulary: vocabulary, snippets: snippets)
+        let toNeoPlan = activeBinding == Self.neoPlanBinding
+        // neo-plan reads the words itself: dictionary spellings, but no snippets and no LLM.
+        let options = toNeoPlan
+            ? Pipeline.Options(mode: mode, vocabulary: vocabulary)
+            : Pipeline.Options(mode: mode, vocabulary: vocabulary, snippets: snippets)
         let hints = vocabulary.terms
         let pipeline = pipeline
         let models = (speech: transcriber.name, cleanup: pipeline.cleaner?.name)
@@ -507,6 +564,9 @@ final class AppModel {
                 let raw = try await transcriber.transcribe(samples, hints: hints)
                 let result = await pipeline.process(raw, options: options)
                 guard !result.text.isEmpty else { return finish(with: .nothingHeard) }
+                if toNeoPlan {
+                    return await sendToNeoPlan(result.text, raw: raw, speechModel: models.speech)
+                }
                 Paster.paste(result.text)
                 let rawText = raw.trimmingCharacters(in: .whitespacesAndNewlines)
                 lastPaste = LastPaste(
@@ -553,14 +613,104 @@ final class AppModel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { Paster.paste(raw) }
     }
 
+    // MARK: - neo-plan
+
+    private var neoPlanClient: NeoPlanClient? {
+        guard let token = Keychain.neoPlanToken, let url = URL(string: neoPlanURL), url.scheme != nil else { return nil }
+        return NeoPlanClient(baseURL: url, token: token)
+    }
+
+    func saveNeoPlanToken(_ token: String?) {
+        Keychain.neoPlanToken = token
+        neoPlanConnected = Keychain.neoPlanToken != nil
+    }
+
+    /// Settings' Test button: nil when it worked, otherwise what went wrong.
+    func testNeoPlan() async -> String? {
+        guard let client = neoPlanClient else { return NeoPlanError.notConnected.localizedDescription }
+        do {
+            try await client.check()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    private func sendToNeoPlan(_ text: String, raw: String, speechModel: String) async {
+        guard let client = neoPlanClient else {
+            return finish(with: .failed(NeoPlanError.notConnected.localizedDescription))
+        }
+        guard let command = NeoPlanCommand.parse(text, allowAdd: neoPlanAdd, allowMark: neoPlanMark) else {
+            return finish(with: .failed(neoPlanMark ? "Say “done with…” or “turned in…”" : "Voice to neo-plan is off"))
+        }
+        do {
+            let message: String
+            switch command {
+            case .add(let line):
+                let item = try await client.capture(line)
+                message = "Added to \(item.summary())"
+                neoPlanUndo = .remove(item.id)
+            case .done(let name):
+                let item = try await client.match(name, for: .done)
+                try await client.setWork(item.id, done: true)
+                message = "Done: \(item.title)"
+                neoPlanUndo = .notDone(item.id)
+            case .turnIn(let name):
+                let item = try await client.match(name, for: .turnIn)
+                // Handing it in means the work is finished, even if it was never ticked.
+                let wasDone = item.work == "ready"
+                if !wasDone { try await client.setWork(item.id, done: true) }
+                try await client.turnIn(item.id)
+                message = "Turned in: \(item.title)"
+                neoPlanUndo = .putBack(item.id, alsoNotDone: !wasDone)
+            }
+            record(HistoryEntry(
+                raw: raw.trimmingCharacters(in: .whitespacesAndNewlines), text: message, mode: Self.neoPlanMode.name,
+                app: nil, speechModel: speechModel, cleanupModel: "Rules only"
+            ))
+            finish(with: .neoPlan(message, undoable: true))
+        } catch {
+            if case NeoPlanError.badToken = error { lastError = error.localizedDescription }
+            finish(with: .failed(error.localizedDescription))
+        }
+    }
+
+    func undoNeoPlan() {
+        guard let undo = neoPlanUndo, let client = neoPlanClient else { return }
+        neoPlanUndo = nil
+        hideWork?.cancel()
+        pill.setInteractive(false)
+        Task {
+            do {
+                switch undo {
+                case .remove(let id):
+                    try await client.remove(id)
+                case .notDone(let id):
+                    try await client.setWork(id, done: false)
+                case .putBack(let id, let alsoNotDone):
+                    try await client.putBack(id)
+                    if alsoNotDone { try await client.setWork(id, done: false) }
+                }
+                finish(with: .neoPlan("Undone", undoable: false))
+            } catch {
+                finish(with: .failed("Couldn't undo in neo-plan"))
+            }
+        }
+    }
+
     private func finish(with outcome: Outcome) {
         phase = .done(outcome)
         let delay: Double = switch outcome {
         case .pasted(undoable: true): 3
+        case .neoPlan(_, undoable: true): 4
         case .pasted: 0.7
         default: 1.6
         }
-        pill.setInteractive(outcome == .pasted(undoable: true))
+        let interactive = switch outcome {
+        case .pasted(undoable: true), .neoPlan(_, undoable: true): true
+        default: false
+        }
+        pill.setInteractive(interactive)
         let work = DispatchWorkItem { [weak self] in self?.hidePill() }
         hideWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
